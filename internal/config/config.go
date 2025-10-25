@@ -56,19 +56,18 @@ func write(cfg Config) error {
 	return nil
 }
 
-func (c *Config) SetToken(index int, token string) error {
-	c.APIKeys[index].Token = token
-	return write(*c)
-}
+func (c *Config) GetKeyInfo() KeyInfo {
+	var activeKey int
 
-func (c *Config) GetToken(key string) error {
-	for index, key := range c.APIKeys {
-		if key.Status {
-			activeKey = index
+	for i, k := range c.APIKeys {
+		if k.Status {
+			activeKey = i
 			break
 		}
 	}
-	return write(*c)
+
+	c.SetStatus(activeKey)
+	return c.APIKeys[activeKey]
 }
 
 func (c *Config) SetStatus(activeKey int) error {
@@ -82,17 +81,14 @@ func (c *Config) SetStatus(activeKey int) error {
 	return write(*c)
 }
 
-func (c *Config) GetActiveKey() string {
-	var activeKey int
-	for index, key := range c.APIKeys {
-		if key.Status {
-			activeKey = index
+func (c *Config) SetToken(key string, token string) error {
+	for i, k := range c.APIKeys {
+		if k.Key == key {
+			c.APIKeys[i].Token = token
 			break
 		}
 	}
-
-	c.SetStatus(activeKey)
-	return c.APIKeys[activeKey].Key
+	return write(*c)
 }
 
 func getConfigFilePath() (string, error) {
