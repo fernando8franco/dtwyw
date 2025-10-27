@@ -3,9 +3,13 @@ package config
 import (
 	"encoding/json"
 	"os"
+	"path/filepath"
 )
 
-const configFileName = "config.json"
+const (
+	dtwywDir       = "dtwyw"
+	configFileName = "config.json"
+)
 
 type Config struct {
 	APIKeys []KeyInfo `json:"api_keys"`
@@ -49,7 +53,10 @@ func write(cfg Config) error {
 	}
 	defer configFile.Close()
 
-	if err := json.NewEncoder(configFile).Encode(cfg); err != nil {
+	encoder := json.NewEncoder(configFile)
+	encoder.SetIndent("", "\t")
+
+	if err := encoder.Encode(cfg); err != nil {
 		return err
 	}
 
@@ -97,6 +104,6 @@ func getConfigFilePath() (string, error) {
 		return "", err
 	}
 
-	configFilePath := homeDir + "/dtwyw/" + configFileName
+	configFilePath := filepath.Join(homeDir, dtwywDir, configFileName)
 	return configFilePath, nil
 }

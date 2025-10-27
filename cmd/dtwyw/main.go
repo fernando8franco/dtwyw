@@ -38,60 +38,6 @@ func main() {
 
 	err = commands.Run(&programState, cmd)
 	if err != nil {
-		log.Fatalf("error running the command: %v", err)
+		log.Fatalf("error running the command:\n%v", err)
 	}
-
-	// // START
-
-	// // UPLOAD
-
-	// // Process
-
-	// urlProcess := fmt.Sprintf("https://%s/v1/process", resultStart.Server)
-	// type ProcessRequest struct {
-	// 	Task  string `json:"task"`
-	// 	Tool  string `json:"tool"`
-	// 	Files []struct {
-	// 		ServerFilename string `json:"server_filename"`
-	// 		Filename       string `json:"filename"`
-	// 	} `json:"files"`
-	// }
-
-	// data := ProcessRequest{
-	// 	Task: resultStart.Task,
-	// 	Tool: "compress",
-	// 	Files: []struct {
-	// 		ServerFilename string `json:"server_filename"`
-	// 		Filename       string `json:"filename"`
-	// 	}{
-	// 		{ServerFilename: resultUpload.ServerFileName, Filename: "uaeh.pdf"},
-	// 	},
-	// }
-
-	// jsonData, err := json.Marshal(data)
-	// if err != nil {
-	// 	log.Fatal(err)
-	// }
-
-	// reqProcess, err := http.NewRequest("POST", urlProcess, bytes.NewBuffer(jsonData))
-	// if err != nil {
-	// 	log.Fatalf("Error creating request: %s", err)
-	// }
-
-	// reqProcess.Header.Set("Content-Type", "application/json")
-	// reqProcess.Header.Set("Authorization", token)
-
-	// respProcess, err := client.Do(reqProcess)
-	// if err != nil {
-	// 	log.Fatalf("Error al enviar la petición: %s", err)
-	// }
-	// defer respProcess.Body.Close()
-
-	// var bodyData map[string]interface{}
-	// if err := json.NewDecoder(respProcess.Body).Decode(&bodyData); err != nil {
-	// 	log.Fatal(err)
-	// }
-
-	// bodyJson, _ := json.MarshalIndent(bodyData, "", "  ")
-	// fmt.Println("JSON response:", string(bodyJson))
 }
