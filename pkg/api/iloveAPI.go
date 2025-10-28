@@ -42,6 +42,10 @@ type ProcessResponse struct {
 	Status           string `json:"status"`
 }
 
+type DowloadResponse struct {
+	Status string `json:"status"`
+}
+
 func GetToken(key string) (token string, err error) {
 	data := struct {
 		PublicKey string `json:"public_key"`
@@ -242,12 +246,12 @@ func Process(server, task, serverFilename, filename, title, author, token string
 	return response, nil
 }
 
-func Dowload(server, task, pdfPath, token string) error {
+func Dowload(server, task, pdfPath, token string) (response DowloadResponse, err error) {
 	dowloadUrl := fmt.Sprintf(DowloadURL, server, task)
 
 	out, err := os.Create(pdfPath)
 	if err != nil {
-		return err
+		return DowloadResponse{}, err
 	}
 	defer out.Close()
 
@@ -257,7 +261,7 @@ func Dowload(server, task, pdfPath, token string) error {
 		nil,
 	)
 	if err != nil {
-		return err
+		return DowloadResponse{}, err
 	}
 
 	req.Header.Set("Authorization", "Bearer "+token)
@@ -265,20 +269,20 @@ func Dowload(server, task, pdfPath, token string) error {
 	client := &http.Client{}
 	res, err := client.Do(req)
 	if err != nil {
-		return err
+		return DowloadResponse{}, err
 	}
 	defer res.Body.Close()
 
 	if res.StatusCode < 200 || res.StatusCode >= 300 {
-		return checkErrorCode(res)
+		return DowloadResponse{}, checkErrorCode(res)
 	}
 
 	_, err = io.Copy(out, res.Body)
 	if err != nil {
-		return err
+		return DowloadResponse{}, err
 	}
 
-	return nil
+	return DowloadResponse{Status: "Succed"}, err
 }
 
 func checkErrorCode(res *http.Response) error {

@@ -24,20 +24,10 @@ func HandlerCompress(s *state, cmd command) error {
 
 	for filename, path := range pdfs {
 		fmt.Println(filename + " " + path)
-		keyInfo := s.cfg.GetKeyInfo()
-		key := keyInfo.Key
-		token := keyInfo.Token
 
-		startResponse, err := api.Start(token)
-		if errors.Is(err, api.ErrUnauthorized) {
-			token, err = getToken(s, key)
-			if err != nil {
-				return err
-			}
-
-			startResponse, err = api.Start(token)
-		}
-
+		startResponse, err := callWithRetry(s, func(t string) (api.StartResponse, error) {
+			return api.Start(t)
+		})
 		if err != nil {
 			return err
 		}
@@ -46,16 +36,9 @@ func HandlerCompress(s *state, cmd command) error {
 		server := startResponse.Server
 		task := startResponse.Task
 
-		uploadResponse, err := api.Upload(server, task, path, token)
-		if errors.Is(err, api.ErrUnauthorized) {
-			token, err = getToken(s, key)
-			if err != nil {
-				return err
-			}
-
-			uploadResponse, err = api.Upload(server, task, path, token)
-		}
-
+		uploadResponse, err := callWithRetry(s, func(t string) (api.UploadResponse, error) {
+			return api.Upload(server, task, path, t)
+		})
 		if err != nil {
 			return err
 		}
@@ -63,16 +46,9 @@ func HandlerCompress(s *state, cmd command) error {
 		fmt.Println(uploadResponse)
 		serverFilename := uploadResponse.ServerFilename
 
-		processResponse, err := api.Process(server, task, serverFilename, filename, "test", "UAEH", token)
-		if errors.Is(err, api.ErrUnauthorized) {
-			token, err = getToken(s, key)
-			if err != nil {
-				return err
-			}
-
-			processResponse, err = api.Process(server, task, serverFilename, filename, "test", "UAEH", token)
-		}
-
+		processResponse, err := callWithRetry(s, func(t string) (api.ProcessResponse, error) {
+			return api.Process(server, task, serverFilename, filename, "test", "UAEH", t)
+		})
 		if err != nil {
 			return err
 		}
@@ -80,22 +56,44 @@ func HandlerCompress(s *state, cmd command) error {
 		fmt.Println(processResponse)
 		compressPdfsPath := strings.Replace(path, pdfsDir, compressPdfsDir, 1)
 
-		err = api.Dowload(server, task, compressPdfsPath, token)
-		if errors.Is(err, api.ErrUnauthorized) {
-			token, err = getToken(s, key)
-			if err != nil {
-				return err
-			}
-
-			err = api.Dowload(server, task, compressPdfsPath, token)
-		}
-
+		dowloadResponse, err := callWithRetry(s, func(t string) (api.DowloadResponse, error) {
+			return api.Dowload(server, task, compressPdfsPath, t)
+		})
 		if err != nil {
 			return err
 		}
+		fmt.Println(dowloadResponse)
 	}
 
 	return nil
+}
+
+func callWithRetry[T any](s *state, apiFunc func(t string) (T, error)) (T, error) {
+	keyInfo := s.cfg.GetKeyInfo()
+	key := keyInfo.Key
+	token := keyInfo.Token
+
+	response, err := apiFunc(token)
+
+	if errors.Is(err, api.ErrUnauthorized) {
+		newToken, errToken := api.GetToken(key)
+		if errToken != nil {
+			var zero T
+			return zero, errToken
+		}
+
+		errToken = s.cfg.SetToken(key, newToken)
+		if errToken != nil {
+			var zero T
+			return zero, errToken
+		}
+
+		token = newToken
+
+		response, err = apiFunc(token)
+	}
+
+	return response, err
 }
 
 func getPDFs() (pdfs map[string]string, err error) {
