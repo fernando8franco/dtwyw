@@ -35,10 +35,6 @@ func HandlerCompress(s *state, cmd command) error {
 	pdfsDirPath := filepath.Join(homeDir, dtwywDir, pdfsDir)
 	configPDFsFilePath := filepath.Join(homeDir, dtwywDir, pdfsDir, configPDFsFile)
 
-	if _, err := os.Stat(configPDFsFilePath); errors.Is(err, os.ErrNotExist) {
-		return fmt.Errorf("the config pdfs file is not created please run: %v -f -title \"title\" -author \"author\"", cmd.Name)
-	}
-
 	if len(cmd.Arguments) == 5 {
 		if cmd.Arguments[0] != "-f" ||
 			cmd.Arguments[1] != "-title" ||
@@ -52,6 +48,10 @@ func HandlerCompress(s *state, cmd command) error {
 		generateConfigPdfsFile(pdfsDirPath, configPDFsFilePath, title, author)
 
 		return nil
+	}
+
+	if _, err := os.Stat(configPDFsFilePath); errors.Is(err, os.ErrNotExist) {
+		return fmt.Errorf("the config pdfs file is not created please run: %v -f -title \"title\" -author \"author\"", cmd.Name)
 	}
 
 	pdfs, err := getConfigPdfsFile(configPDFsFilePath)
