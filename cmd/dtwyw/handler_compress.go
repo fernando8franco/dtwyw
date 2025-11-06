@@ -17,6 +17,14 @@ const (
 	pdfsDir         = "pdfs"
 	compressPdfsDir = "compress_pdfs"
 	configPDFsFile  = "config.pdfs.json"
+	usageMessage    = `usage: %v [--file (--title "title" | --author "author")]
+
+Options:
+  --file         Path to the file (optional)
+  --title "t"    Title to associate with the file
+  --author "a"   Author name (required if --file is used)
+
+Note: --file requires at least one of --title or --author`
 )
 
 type PDFsConfig struct {
@@ -39,7 +47,7 @@ func HandlerCompress(s *state, cmd command) error {
 		if cmd.Arguments[0] != "-f" ||
 			cmd.Arguments[1] != "-title" ||
 			cmd.Arguments[3] != "-author" {
-			return fmt.Errorf("usage: %v -f -title \"title\" -author \"author\"", cmd.Name)
+			return fmt.Errorf(usageMessage, cmd.Name)
 		}
 
 		title := cmd.Arguments[2]
@@ -51,7 +59,7 @@ func HandlerCompress(s *state, cmd command) error {
 	}
 
 	if _, err := os.Stat(configPDFsFilePath); errors.Is(err, os.ErrNotExist) {
-		return fmt.Errorf("the config pdfs file is not created please run: %v -f -title \"title\" -author \"author\"", cmd.Name)
+		return fmt.Errorf("the config pdfs file is not created\n %s", cmd.Name)
 	}
 
 	pdfs, err := getConfigPdfsFile(configPDFsFilePath)
@@ -185,6 +193,10 @@ func generateConfigPdfsFile(homeDir, configPDFsFilePath, title, author string) e
 		ext := filepath.Ext(filename)
 		filenameWithoutExt := filename[:len(filename)-len(ext)]
 		newFilename := slug.GenerateSlug(filenameWithoutExt) + ext
+
+		if strings.TrimSpace(title) == "" {
+			title = filenameWithoutExt
+		}
 
 		pdfsInfo[filename] = PDFsConfig{
 			Path:    path,
