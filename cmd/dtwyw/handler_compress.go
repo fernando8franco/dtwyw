@@ -17,14 +17,6 @@ const (
 	pdfsDir         = "pdfs"
 	compressPdfsDir = "compress_pdfs"
 	configPDFsFile  = "config.pdfs.json"
-	usageMessage    = `usage: %v [--file (--title "title" | --author "author")]
-
-Options:
-  --file         Path to the file (optional)
-  --title "t"    Title to associate with the file
-  --author "a"   Author name (required if --file is used)
-
-Note: --file requires at least one of --title or --author`
 )
 
 type PDFsConfig struct {
@@ -43,23 +35,39 @@ func HandlerCompress(s *state, cmd command) error {
 	pdfsDirPath := filepath.Join(homeDir, dtwywDir, pdfsDir)
 	configPDFsFilePath := filepath.Join(homeDir, dtwywDir, pdfsDir, configPDFsFile)
 
-	if len(cmd.Arguments) == 5 {
-		if cmd.Arguments[0] != "-f" ||
-			cmd.Arguments[1] != "-title" ||
-			cmd.Arguments[3] != "-author" {
-			return fmt.Errorf(usageMessage, cmd.Name)
-		}
+	var title string
+	var author string
+	var initFlag bool
 
-		title := cmd.Arguments[2]
-		author := cmd.Arguments[4]
+	for i := 0; i < len(cmd.Arguments); i++ {
+		switch cmd.Arguments[i] {
+		case "--title":
+			if i+1 < len(cmd.Arguments) {
+				title = cmd.Arguments[i+1]
+				i++
+			}
+		case "--author":
+			if i+1 < len(cmd.Arguments) {
+				author = cmd.Arguments[i+1]
+				i++
+			}
+		case "--init":
+			initFlag = true
+		}
+	}
+
+	if initFlag {
+		if _, err := os.Stat(configPDFsFilePath); !errors.Is(err, os.ErrNotExist) {
+			return errors.New("the config pdfs file is already created")
+		}
 
 		generateConfigPdfsFile(pdfsDirPath, configPDFsFilePath, title, author)
 
 		return nil
-	}
-
-	if _, err := os.Stat(configPDFsFilePath); errors.Is(err, os.ErrNotExist) {
-		return fmt.Errorf("the config pdfs file is not created\n %s", cmd.Name)
+	} else {
+		if _, err := os.Stat(configPDFsFilePath); errors.Is(err, os.ErrNotExist) {
+			return fmt.Errorf("the config pdfs file is not created\n%s", getUsageMessage(cmd.Name))
+		}
 	}
 
 	pdfs, err := getConfigPdfsFile(configPDFsFilePath)
@@ -194,7 +202,7 @@ func generateConfigPdfsFile(homeDir, configPDFsFilePath, title, author string) e
 		filenameWithoutExt := filename[:len(filename)-len(ext)]
 		newFilename := slug.GenerateSlug(filenameWithoutExt) + ext
 
-		if strings.TrimSpace(title) == "" {
+		if title == "filename" {
 			title = filenameWithoutExt
 		}
 
@@ -245,4 +253,16 @@ func getConfigPdfsFile(cfgPDFsFile string) (map[string]PDFsConfig, error) {
 	}
 
 	return cfg, nil
+}
+
+func getUsageMessage(commandName string) (usageMessage string) {
+	return fmt.Sprintf(`Usage: %s [--init [--title "TITLE"] [--author "AUTHOR"]]
+
+Options:
+  --init   Creation of the config file (optional)
+	--title "title"     Title to associate with the file (optional for init)
+	--author "author"   Author name to associate with the file (optional for init)
+
+Note: if you put filename as title the name of the file would be the title
+`, commandName)
 }
