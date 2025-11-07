@@ -202,14 +202,17 @@ func generateConfigPdfsFile(homeDir, configPDFsFilePath, title, author string) e
 		filenameWithoutExt := filename[:len(filename)-len(ext)]
 		newFilename := slug.GenerateSlug(filenameWithoutExt) + ext
 
+		var metaTitle string
 		if title == "filename" {
-			title = filenameWithoutExt
+			metaTitle = filenameWithoutExt
+		} else {
+			metaTitle = title
 		}
 
 		pdfsInfo[filename] = PDFsConfig{
 			Path:    path,
 			NewName: newFilename,
-			Title:   title,
+			Title:   metaTitle,
 			Author:  author,
 		}
 	}
