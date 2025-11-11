@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 
 	"github.com/fernando8franco/dtwyw/pkg/api"
@@ -39,20 +40,21 @@ func HandlerCompress(s *state, cmd command) error {
 	var author string
 	var initFlag bool
 
-	for i := 0; i < len(cmd.Arguments); i++ {
-		switch cmd.Arguments[i] {
-		case "--title":
-			if i+1 < len(cmd.Arguments) {
-				title = cmd.Arguments[i+1]
-				i++
+	if len(cmd.Arguments) > 0 && cmd.Arguments[0] == "--init" {
+		initFlag = true
+		for i := 0; i < len(cmd.Arguments); i++ {
+			switch cmd.Arguments[i] {
+			case "--title":
+				if i+1 < len(cmd.Arguments) {
+					title = cmd.Arguments[i+1]
+					i++
+				}
+			case "--author":
+				if i+1 < len(cmd.Arguments) {
+					author = cmd.Arguments[i+1]
+					i++
+				}
 			}
-		case "--author":
-			if i+1 < len(cmd.Arguments) {
-				author = cmd.Arguments[i+1]
-				i++
-			}
-		case "--init":
-			initFlag = true
 		}
 	}
 
@@ -75,19 +77,19 @@ func HandlerCompress(s *state, cmd command) error {
 		return err
 	}
 
-	defer func() {
-		err := os.Remove(configPDFsFilePath)
-		if err != nil {
-			fmt.Printf("Error al eliminar archivo: %v\n", err)
-		}
-	}()
-
 	keyInfo := s.cfg.GetKeyInfo()
 	key := keyInfo.Key
 	token := keyInfo.Token
 
+	numCPU := runtime.NumCPU()
+	fmt.Println("Número de CPUs disponibles:", numCPU)
+	runtime.GOMAXPROCS(numCPU)
+
 	for filename, info := range pdfs {
 		filePath := filepath.Join(info.Path, filename)
+		if _, err := os.Stat(filePath); errors.Is(err, os.ErrNotExist) {
+			continue
+		}
 		fmt.Println(filename, filePath)
 
 		startResponse, err := callWithRetry(
@@ -152,9 +154,14 @@ func HandlerCompress(s *state, cmd command) error {
 		fmt.Println(dowloadResponse)
 
 		err = os.Remove(filePath)
-		if err != nil {
-			return err
-		}
+		// if err != nil {
+		// 	return err
+		// }
+	}
+
+	err = os.Remove(configPDFsFilePath)
+	if err != nil {
+		fmt.Printf("Error al eliminar archivo: %v\n", err)
 	}
 
 	return nil

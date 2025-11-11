@@ -80,14 +80,14 @@ func GetToken(key string) (token string, err error) {
 		return "", checkErrorCode(res)
 	}
 
-	tokenResponse := struct {
+	response := struct {
 		Token string `json:"token"`
 	}{}
-	if err := json.NewDecoder(res.Body).Decode(&tokenResponse); err != nil {
+	if err := json.NewDecoder(res.Body).Decode(&response); err != nil {
 		return "", err
 	}
 
-	return tokenResponse.Token, nil
+	return response.Token, nil
 }
 
 func Start(token string) (response StartResponse, err error) {
