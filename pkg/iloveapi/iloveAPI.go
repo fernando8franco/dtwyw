@@ -22,6 +22,11 @@ const (
 
 var ErrUnauthorized = errors.New("unauthorized")
 
+type ILoveAPI struct {
+	Key   string
+	Token string
+}
+
 type StartResponse struct {
 	Server           string `json:"server"`
 	Task             string `json:"task"`
@@ -46,11 +51,11 @@ type DowloadResponse struct {
 	Status string `json:"status"`
 }
 
-func GetToken(key string) (token string, err error) {
+func (il *ILoveAPI) GetToken() (token string, err error) {
 	data := struct {
 		PublicKey string `json:"public_key"`
 	}{
-		PublicKey: key,
+		PublicKey: il.Key,
 	}
 
 	jsonData, err := json.Marshal(data)
@@ -90,7 +95,7 @@ func GetToken(key string) (token string, err error) {
 	return response.Token, nil
 }
 
-func Start(token string) (response StartResponse, err error) {
+func (il *ILoveAPI) Start() (response StartResponse, err error) {
 	req, err := http.NewRequest(
 		"GET",
 		StartURL,
@@ -100,7 +105,7 @@ func Start(token string) (response StartResponse, err error) {
 		return StartResponse{}, err
 	}
 
-	req.Header.Set("Authorization", "Bearer "+token)
+	req.Header.Set("Authorization", "Bearer "+il.Token)
 
 	client := &http.Client{}
 	res, err := client.Do(req)
@@ -120,7 +125,7 @@ func Start(token string) (response StartResponse, err error) {
 	return response, nil
 }
 
-func Upload(server, task, pdfPath, token string) (response UploadResponse, err error) {
+func (il *ILoveAPI) Upload(server, task, pdfPath string) (response UploadResponse, err error) {
 	uploadUrl := fmt.Sprintf(UploadURL, server)
 
 	file, err := os.Open(pdfPath)
@@ -159,7 +164,7 @@ func Upload(server, task, pdfPath, token string) (response UploadResponse, err e
 	}
 
 	req.Header.Set("Content-Type", writer.FormDataContentType())
-	req.Header.Set("Authorization", "Bearer "+token)
+	req.Header.Set("Authorization", "Bearer "+il.Token)
 
 	client := &http.Client{}
 	res, err := client.Do(req)
@@ -179,7 +184,7 @@ func Upload(server, task, pdfPath, token string) (response UploadResponse, err e
 	return response, nil
 }
 
-func Process(server, task, serverFilename, filename, title, author, token string) (response ProcessResponse, err error) {
+func (il *ILoveAPI) Process(server, task, serverFilename, filename, title, author string) (response ProcessResponse, err error) {
 	processUrl := fmt.Sprintf(ProcessURL, server)
 	type Meta struct {
 		Title  string `json:"Title"`
@@ -226,7 +231,7 @@ func Process(server, task, serverFilename, filename, title, author, token string
 	}
 
 	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("Authorization", "Bearer "+token)
+	req.Header.Set("Authorization", "Bearer "+il.Token)
 
 	client := &http.Client{}
 	res, err := client.Do(req)
@@ -246,7 +251,7 @@ func Process(server, task, serverFilename, filename, title, author, token string
 	return response, nil
 }
 
-func Dowload(server, task, pdfPath, token string) (response DowloadResponse, err error) {
+func (il *ILoveAPI) Dowload(server, task, pdfPath string) (response DowloadResponse, err error) {
 	dowloadUrl := fmt.Sprintf(DowloadURL, server, task)
 
 	out, err := os.Create(pdfPath)
@@ -264,7 +269,7 @@ func Dowload(server, task, pdfPath, token string) (response DowloadResponse, err
 		return DowloadResponse{}, err
 	}
 
-	req.Header.Set("Authorization", "Bearer "+token)
+	req.Header.Set("Authorization", "Bearer "+il.Token)
 
 	client := &http.Client{}
 	res, err := client.Do(req)

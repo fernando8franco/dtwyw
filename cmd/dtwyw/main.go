@@ -3,22 +3,26 @@ package main
 import (
 	"log"
 	"os"
+	"sync"
 
 	"github.com/fernando8franco/dtwyw/internal/config"
 )
 
 type state struct {
 	cfg *config.Config
+	mu  *sync.RWMutex
 }
 
 func main() {
 	conf, err := config.Read()
+	mu := &sync.RWMutex{}
 	if err != nil {
 		log.Fatalf("error reading config file: %v", err)
 	}
 
 	programState := state{
 		cfg: &conf,
+		mu:  mu,
 	}
 
 	commands := commands{

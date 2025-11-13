@@ -6,11 +6,11 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"runtime"
 	"strings"
 
-	"github.com/fernando8franco/dtwyw/pkg/api"
+	api "github.com/fernando8franco/dtwyw/pkg/iloveapi"
 	"github.com/fernando8franco/dtwyw/pkg/slug"
+	"golang.org/x/sync/errgroup"
 )
 
 const (
@@ -78,114 +78,109 @@ func HandlerCompress(s *state, cmd command) error {
 	}
 
 	keyInfo := s.cfg.GetKeyInfo()
-	key := keyInfo.Key
-	token := keyInfo.Token
+	type PDF struct {
+		Filename string
+		Info     PDFsConfig
+	}
 
-	numCPU := runtime.NumCPU()
-	fmt.Println("Número de CPUs disponibles:", numCPU)
-	runtime.GOMAXPROCS(numCPU)
+	pdfsChannel := make(chan PDF)
+	iloveapi := api.ILoveAPI{
+		Key:   keyInfo.Key,
+		Token: keyInfo.Token,
+	}
 
-	for filename, info := range pdfs {
-		filePath := filepath.Join(info.Path, filename)
-		if _, err := os.Stat(filePath); errors.Is(err, os.ErrNotExist) {
-			continue
+	var wg errgroup.Group
+	for range 3 {
+		wg.Go(func() error {
+			for pdf := range pdfsChannel {
+				fmt.Println("Compressing:", pdf.Filename)
+				routineToken := iloveapi.Token
+
+				startResponse, err := callWithRetry(s, &iloveapi, routineToken, func() (api.StartResponse, error) {
+					return iloveapi.Start()
+				})
+				if err != nil {
+					return err
+				}
+
+				server := startResponse.Server
+				task := startResponse.Task
+				pdfFile := filepath.Join(pdf.Info.Path, pdf.Filename)
+
+				uploadResponse, err := callWithRetry(s, &iloveapi, routineToken, func() (api.UploadResponse, error) {
+					return iloveapi.Upload(server, task, pdfFile)
+				})
+				if err != nil {
+					return err
+				}
+
+				serverFilename := uploadResponse.ServerFilename
+				_, err = callWithRetry(s, &iloveapi, routineToken, func() (api.ProcessResponse, error) {
+					return iloveapi.Process(server, task, serverFilename, pdf.Filename, pdf.Info.Title, pdf.Info.Author)
+				})
+				if err != nil {
+					return err
+				}
+
+				compressPdfPath := strings.Replace(pdf.Info.Path, pdfsDir, compressPdfsDir, 1)
+				compressPdfPath = filepath.Join(compressPdfPath, pdf.Info.NewName)
+				dowloadResponse, err := callWithRetry(s, &iloveapi, routineToken, func() (api.DowloadResponse, error) {
+					return iloveapi.Dowload(server, task, compressPdfPath)
+				})
+				if err != nil {
+					return err
+				}
+
+				err = os.Remove(pdfFile)
+				if err != nil {
+					return err
+				}
+				fmt.Println(pdf.Filename, "--- Compress", dowloadResponse.Status)
+			}
+
+			return nil
+		})
+	}
+
+	go func() {
+		defer close(pdfsChannel)
+		for filename, info := range pdfs {
+			filePath := filepath.Join(info.Path, filename)
+			if _, err := os.Stat(filePath); errors.Is(err, os.ErrNotExist) {
+				continue
+			}
+			pdf := PDF{
+				Filename: filename,
+				Info:     info,
+			}
+			pdfsChannel <- pdf
 		}
-		fmt.Println(filename, filePath)
+	}()
 
-		startResponse, err := callWithRetry(
-			s,
-			key,
-			&token,
-			func(t string) (api.StartResponse, error) {
-				return api.Start(t)
-			},
-		)
-		if err != nil {
-			return err
-		}
-
-		fmt.Println(startResponse)
-		server := startResponse.Server
-		task := startResponse.Task
-
-		uploadResponse, err := callWithRetry(
-			s,
-			key,
-			&token,
-			func(t string) (api.UploadResponse, error) {
-				return api.Upload(server, task, filePath, t)
-			},
-		)
-		if err != nil {
-			return err
-		}
-
-		fmt.Println(uploadResponse)
-		serverFilename := uploadResponse.ServerFilename
-
-		processResponse, err := callWithRetry(
-			s,
-			key,
-			&token,
-			func(t string) (api.ProcessResponse, error) {
-				return api.Process(server, task, serverFilename, filename, info.Title, info.Author, t)
-			},
-		)
-		if err != nil {
-			return err
-		}
-
-		fmt.Println(processResponse)
-		compressPdfsPath := strings.Replace(info.Path, pdfsDir, compressPdfsDir, 1)
-		compressPdfsPath = filepath.Join(compressPdfsPath, info.NewName)
-
-		dowloadResponse, err := callWithRetry(
-			s,
-			key,
-			&token,
-			func(t string) (api.DowloadResponse, error) {
-				return api.Dowload(server, task, compressPdfsPath, t)
-			},
-		)
-		if err != nil {
-			return err
-		}
-
-		fmt.Println(dowloadResponse)
-
-		err = os.Remove(filePath)
-		// if err != nil {
-		// 	return err
-		// }
+	if err := wg.Wait(); err != nil {
+		fmt.Println("Error:", err)
+	} else {
+		fmt.Println("All pdfs were compressed correctly")
 	}
 
 	err = os.Remove(configPDFsFilePath)
 	if err != nil {
-		fmt.Printf("Error al eliminar archivo: %v\n", err)
+		return err
 	}
 
 	return nil
 }
 
-func callWithRetry[T any](s *state, key string, token *string, apiFunc func(t string) (T, error)) (T, error) {
-	response, err := apiFunc(*token)
+func callWithRetry[T any](s *state, iloveAPI *api.ILoveAPI, routineToken string, apiFunc func() (T, error)) (T, error) {
+	response, err := apiFunc()
 
 	if errors.Is(err, api.ErrUnauthorized) {
-		newToken, errToken := api.GetToken(key)
-		if errToken != nil {
-			var zero T
-			return zero, errToken
+		err = getToken(s, iloveAPI, routineToken)
+		if err != nil {
+			return response, err
 		}
 
-		errToken = s.cfg.SetToken(key, newToken)
-		if errToken != nil {
-			var zero T
-			return zero, errToken
-		}
-
-		*token = newToken
-
-		response, err = apiFunc(*token)
+		response, err = apiFunc()
 	}
 
 	return response, err
@@ -263,6 +258,32 @@ func getConfigPdfsFile(cfgPDFsFile string) (map[string]PDFsConfig, error) {
 	}
 
 	return cfg, nil
+}
+
+func getToken(s *state, iloveAPI *api.ILoveAPI, routineToken string) (err error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	currentSavedToken := s.cfg.GetToken()
+
+	if routineToken == currentSavedToken {
+		fmt.Println("Refresing Token...")
+		newToken, err := iloveAPI.GetToken()
+		if err != nil {
+			return err
+		}
+		iloveAPI.Token = newToken
+
+		fmt.Println(newToken)
+		err = s.cfg.SetToken(iloveAPI.Key, newToken)
+		if err != nil {
+			return err
+		}
+
+	} else {
+		iloveAPI.Token = currentSavedToken
+	}
+
+	return nil
 }
 
 func getUsageMessage(commandName string) (usageMessage string) {
