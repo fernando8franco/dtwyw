@@ -158,7 +158,7 @@ func HandlerCompress(s *state, cmd command) error {
 	}()
 
 	if err := wg.Wait(); err != nil {
-		fmt.Println("Error:", err)
+		return err
 	} else {
 		fmt.Println("All pdfs were compressed correctly")
 	}
