@@ -273,7 +273,6 @@ func getToken(s *state, iloveAPI *api.ILoveAPI, routineToken string) (err error)
 		}
 		iloveAPI.Token = newToken
 
-		fmt.Println(newToken)
 		err = s.cfg.SetToken(iloveAPI.Key, newToken)
 		if err != nil {
 			return err
