@@ -15,13 +15,6 @@ import (
 	"golang.org/x/sync/errgroup"
 )
 
-type PDFsConfig struct {
-	Path    string `json:"path"`
-	NewName string `json:"new_name"`
-	Title   string `json:"title"`
-	Author  string `json:"author"`
-}
-
 func HandlerCompress(s *state, cmd command) error {
 	var title string
 	var author string

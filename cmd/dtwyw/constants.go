@@ -1,8 +1,15 @@
 package main
 
 const (
+	initHelpFlag   = "help"
+	initTitleFlag  = "title"
+	initAuthorFlag = "author"
+
+	pdfExt        = ".pdf"
+	titleFilename = "filename"
+
 	dtwywDir        = "dtwyw"
 	pdfsDir         = "pdfs"
 	compressPdfsDir = "compress_pdfs"
-	configPDFsFile  = "config.pdfs.json"
+	cnfPDFsFilename = "config.pdfs.json"
 )

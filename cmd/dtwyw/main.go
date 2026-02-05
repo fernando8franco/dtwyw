@@ -32,8 +32,9 @@ func main() {
 	if err != nil {
 		log.Fatalf("error getting user home dir: %v", err)
 	}
-	pdfsDirPath := filepath.Join(homeDir, dtwywDir, pdfsDir)
-	configPDFsFilePath := filepath.Join(homeDir, dtwywDir, pdfsDir, configPDFsFile)
+	appPath := filepath.Join(homeDir, dtwywDir)
+	pdfsDirPath := filepath.Join(appPath, pdfsDir)
+	configPDFsFilePath := filepath.Join(appPath, pdfsDir, cnfPDFsFilename)
 
 	mu := &sync.RWMutex{}
 
