@@ -3,21 +3,16 @@ package main
 import (
 	"encoding/json"
 	"errors"
+	"flag"
 	"fmt"
+	"io"
+	"net/http"
 	"os"
 	"path/filepath"
 	"strings"
 
-	api "github.com/fernando8franco/dtwyw/pkg/iloveapi"
-	"github.com/fernando8franco/dtwyw/pkg/slug"
+	apiTest "github.com/fernando8franco/i-love-api-golang"
 	"golang.org/x/sync/errgroup"
-)
-
-const (
-	dtwywDir        = "dtwyw"
-	pdfsDir         = "pdfs"
-	compressPdfsDir = "compress_pdfs"
-	configPDFsFile  = "config.pdfs.json"
 )
 
 type PDFsConfig struct {
@@ -28,17 +23,51 @@ type PDFsConfig struct {
 }
 
 func HandlerCompress(s *state, cmd command) error {
-	homeDir, err := os.UserHomeDir()
-	if err != nil {
-		return err
-	}
-
-	pdfsDirPath := filepath.Join(homeDir, dtwywDir, pdfsDir)
-	configPDFsFilePath := filepath.Join(homeDir, dtwywDir, pdfsDir, configPDFsFile)
-
 	var title string
 	var author string
 	var initFlag bool
+
+	fs := flag.NewFlagSet(cmd.Name, flag.ContinueOnError)
+	fs.Usage = func() {
+		fmt.Println("Usage: dtwyw compress [options]")
+		fmt.Println("\nOptions:")
+		fs.PrintDefaults()
+		fmt.Println("\nExample: dtwyw compress --init --title 'My File' --author 'Franco'")
+	}
+	initMode := fs.Bool("init", false, "Generate a configuration file")
+	title2 := fs.String("title", "", "Title for the config")
+	author2 := fs.String("author", "", "Author name")
+
+	fs.Parse(cmd.Arguments)
+	// if err := fs.Parse(cmd.Arguments); err != nil {
+	// 	return err
+	// }
+
+	if !*initMode && (len(*title2) >= 0 || len(*author2) >= 0) {
+		fmt.Println("The --title and --author flags can only be used with the --init flag")
+		return nil
+	}
+
+	fmt.Println("2")
+	return nil
+
+	// if len(cmd.Arguments) > 0 {
+	// 	switch cmd.Arguments[0] {
+	// 	case "-h", "--help":
+	// 		fmt.Println(getUsageMessage(cmd.Name))
+	// 		return nil
+	// 	case "-i", "--init":
+	// 		fmt.Println("init")
+	// 	default:
+	// 		fmt.Printf("%s: invalid option -- '%s'\nTry '%s --help' for more information\n", cmd.Name, cmd.Arguments[0], cmd.Name)
+	// 		return nil
+	// 	}
+	// }
+
+	if len(cmd.Arguments) > 0 && cmd.Arguments[0] == "--help" {
+		fmt.Println(getUsageMessage(cmd.Name))
+		return nil
+	}
 
 	if len(cmd.Arguments) > 0 && cmd.Arguments[0] == "--init" {
 		initFlag = true
@@ -58,9 +87,18 @@ func HandlerCompress(s *state, cmd command) error {
 		}
 	}
 
+	homeDir, err := os.UserHomeDir()
+	if err != nil {
+		return err
+	}
+
+	pdfsDirPath := filepath.Join(homeDir, dtwywDir, pdfsDir)
+	configPDFsFilePath := filepath.Join(homeDir, dtwywDir, pdfsDir, configPDFsFile)
+
 	if initFlag {
 		if _, err := os.Stat(configPDFsFilePath); !errors.Is(err, os.ErrNotExist) {
-			return errors.New("the config pdfs file is already created")
+			fmt.Println("The config pdfs file is already created")
+			return nil
 		}
 
 		generateConfigPdfsFile(pdfsDirPath, configPDFsFilePath, title, author)
@@ -68,7 +106,8 @@ func HandlerCompress(s *state, cmd command) error {
 		return nil
 	} else {
 		if _, err := os.Stat(configPDFsFilePath); errors.Is(err, os.ErrNotExist) {
-			return fmt.Errorf("the config pdfs file is not created\n%s", getUsageMessage(cmd.Name))
+			fmt.Printf("PDF's config file not found\nTry '%s --help' for more information\n", cmd.Name)
+			return nil
 		}
 	}
 
@@ -84,20 +123,20 @@ func HandlerCompress(s *state, cmd command) error {
 	}
 
 	pdfsChannel := make(chan PDF)
-	iloveapi := api.ILoveAPI{
-		Key:   keyInfo.Key,
-		Token: keyInfo.Token,
-	}
+
+	tool := "compress"
+	client := &http.Client{}
+	iloveapi := apiTest.NewClient(client, keyInfo.Key, keyInfo.Token)
 
 	var wg errgroup.Group
 	for range 3 {
 		wg.Go(func() error {
 			for pdf := range pdfsChannel {
 				fmt.Println("Compressing:", pdf.Filename)
-				routineToken := iloveapi.Token
+				routineToken := iloveapi.GetToken()
 
-				startResponse, err := callWithRetry(s, &iloveapi, routineToken, func() (api.StartResponse, error) {
-					return iloveapi.Start()
+				startResponse, err := callWithRetry(s, iloveapi, routineToken, func() (apiTest.StartResponse, error) {
+					return iloveapi.Start(tool, "us")
 				})
 				if err != nil {
 					return err
@@ -107,16 +146,39 @@ func HandlerCompress(s *state, cmd command) error {
 				task := startResponse.Task
 				pdfFile := filepath.Join(pdf.Info.Path, pdf.Filename)
 
-				uploadResponse, err := callWithRetry(s, &iloveapi, routineToken, func() (api.UploadResponse, error) {
-					return iloveapi.Upload(server, task, pdfFile)
+				file, err := os.Open(pdfFile)
+				if err != nil {
+					return err
+				}
+				defer file.Close()
+
+				uploadResponse, err := callWithRetry(s, iloveapi, routineToken, func() (apiTest.UploadResponse, error) {
+					return iloveapi.Upload(server, apiTest.UploadRequest{
+						Task:     task,
+						File:     file,
+						FileName: pdf.Filename,
+					})
 				})
 				if err != nil {
 					return err
 				}
 
 				serverFilename := uploadResponse.ServerFilename
-				_, err = callWithRetry(s, &iloveapi, routineToken, func() (api.ProcessResponse, error) {
-					return iloveapi.Process(server, task, serverFilename, pdf.Filename, pdf.Info.Title, pdf.Info.Author)
+				_, err = callWithRetry(s, iloveapi, routineToken, func() (apiTest.ProcessResponse, error) {
+					return iloveapi.Process(server, apiTest.ProcessRequest{
+						Task: task,
+						Tool: tool,
+						Files: []apiTest.Files{
+							{
+								ServerFileName: serverFilename,
+								FileName:       pdf.Filename,
+							},
+						},
+						Meta: apiTest.Meta{
+							Title:  pdf.Info.Title,
+							Author: pdf.Info.Author,
+						},
+					})
 				})
 				if err != nil {
 					return err
@@ -124,9 +186,22 @@ func HandlerCompress(s *state, cmd command) error {
 
 				compressPdfPath := strings.Replace(pdf.Info.Path, pdfsDir, compressPdfsDir, 1)
 				compressPdfPath = filepath.Join(compressPdfPath, pdf.Info.NewName)
-				dowloadResponse, err := callWithRetry(s, &iloveapi, routineToken, func() (api.DowloadResponse, error) {
-					return iloveapi.Dowload(server, task, compressPdfPath)
+
+				out, err := os.Create(compressPdfPath)
+				if err != nil {
+					return err
+				}
+				defer out.Close()
+
+				dowloadResponse, err := callWithRetry(s, iloveapi, routineToken, func() (io.ReadCloser, error) {
+					return iloveapi.Dowload(server, task, out)
 				})
+				if err != nil {
+					return err
+				}
+				defer dowloadResponse.Close()
+
+				_, err = io.Copy(out, dowloadResponse)
 				if err != nil {
 					return err
 				}
@@ -135,7 +210,7 @@ func HandlerCompress(s *state, cmd command) error {
 				if err != nil {
 					return err
 				}
-				fmt.Println(pdf.Filename, "--- Compress", dowloadResponse.Status)
+				fmt.Println(pdf.Filename, "--- Compress GOOD")
 			}
 
 			return nil
@@ -171,78 +246,27 @@ func HandlerCompress(s *state, cmd command) error {
 	return nil
 }
 
-func callWithRetry[T any](s *state, iloveAPI *api.ILoveAPI, routineToken string, apiFunc func() (T, error)) (T, error) {
+func callWithRetry[T any](s *state, iloveAPI *apiTest.Client, routineToken string, apiFunc func() (T, error)) (T, error) {
 	response, err := apiFunc()
 
-	if errors.Is(err, api.ErrUnauthorized) {
-		err = getToken(s, iloveAPI, routineToken)
-		if err != nil {
-			return response, err
-		}
+	if err != nil {
+		if isUnauthorized(err) {
+			err = getToken(s, iloveAPI, routineToken)
+			if err != nil {
+				return response, err
+			}
 
-		response, err = apiFunc()
+			response, err = apiFunc()
+		}
 	}
 
 	return response, err
 }
 
-func generateConfigPdfsFile(homeDir, configPDFsFilePath, title, author string) error {
-	cfgPDFsFile, err := os.Create(configPDFsFilePath)
-	if err != nil {
-		return err
-	}
-	defer cfgPDFsFile.Close()
-
-	pdfs, err := getPDFs(homeDir)
-	if err != nil {
-		return err
-	}
-
-	pdfsInfo := map[string]PDFsConfig{}
-	for filename, path := range pdfs {
-		ext := filepath.Ext(filename)
-		filenameWithoutExt := filename[:len(filename)-len(ext)]
-		newFilename := slug.GenerateSlug(filenameWithoutExt) + ext
-
-		var metaTitle string
-		if title == "filename" {
-			metaTitle = filenameWithoutExt
-		} else {
-			metaTitle = title
-		}
-
-		pdfsInfo[filename] = PDFsConfig{
-			Path:    path,
-			NewName: newFilename,
-			Title:   metaTitle,
-			Author:  author,
-		}
-	}
-
-	encoder := json.NewEncoder(cfgPDFsFile)
-	encoder.SetIndent("", "  ")
-
-	if err := encoder.Encode(pdfsInfo); err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func getPDFs(pdfsDirPath string) (pdfs map[string]string, err error) {
-	entries, err := os.ReadDir(pdfsDirPath)
-	if err != nil {
-		return nil, err
-	}
-
-	pdfs = map[string]string{}
-	for _, e := range entries {
-		if !e.IsDir() && strings.ToLower(filepath.Ext(e.Name())) == ".pdf" {
-			pdfs[e.Name()] = pdfsDirPath
-		}
-	}
-
-	return pdfs, err
+func isUnauthorized(err error) bool {
+	type unauthorized interface{ IsUnauthorized() bool }
+	var u unauthorized
+	return errors.As(err, &u) && u.IsUnauthorized()
 }
 
 func getConfigPdfsFile(cfgPDFsFile string) (map[string]PDFsConfig, error) {
@@ -260,26 +284,26 @@ func getConfigPdfsFile(cfgPDFsFile string) (map[string]PDFsConfig, error) {
 	return cfg, nil
 }
 
-func getToken(s *state, iloveAPI *api.ILoveAPI, routineToken string) (err error) {
+func getToken(s *state, iloveAPI *apiTest.Client, routineToken string) (err error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	currentSavedToken := s.cfg.GetToken()
 
 	if routineToken == currentSavedToken {
 		fmt.Println("Refresing Token...")
-		newToken, err := iloveAPI.GetToken()
+		newToken, err := iloveAPI.GenerateToken()
 		if err != nil {
 			return err
 		}
-		iloveAPI.Token = newToken
+		iloveAPI.SetToken(newToken)
 
-		err = s.cfg.SetToken(iloveAPI.Key, newToken)
+		err = s.cfg.SetToken(iloveAPI.GetAPIKey(), newToken)
 		if err != nil {
 			return err
 		}
 
 	} else {
-		iloveAPI.Token = currentSavedToken
+		iloveAPI.SetToken(currentSavedToken)
 	}
 
 	return nil
@@ -290,9 +314,9 @@ func getUsageMessage(commandName string) (usageMessage string) {
 
 Options:
   --init   Creation of the config file (optional)
-	--title "title"     Title to associate with the file (optional for init)
-	--author "author"   Author name to associate with the file (optional for init)
+		--title "title"     Title to associate with the file (optional for init)
+		--author "author"   Author name to associate with the file (optional for init)
 
-Note: if you put filename as title the name of the file would be the title
+Note: If you put "filename" as title, the name of the file would be the title
 `, commandName)
 }
