@@ -6,7 +6,6 @@ import (
 	"flag"
 	"fmt"
 	"os"
-	"path/filepath"
 	"strings"
 
 	"github.com/fernando8franco/dtwyw/pkg/pdfs"
@@ -17,8 +16,8 @@ func HandlerInit(s *state, cmd command) error {
 	fs := flag.NewFlagSet(cmd.Name, flag.ContinueOnError)
 
 	help := fs.Bool(initHelpFlag, false, "Show help message")
-	title := fs.String(initTitleFlag, "", "Title for the config file")
-	author := fs.String(initAuthorFlag, "", "Author name for the config file")
+	title := fs.String(initTitleFlag, "", "Title for the config file (use 'filename' to use the actual file name)")
+	author := fs.String(initAuthorFlag, "", "Author name for the config file.")
 
 	err := fs.Parse(cmd.Arguments)
 	if err != nil {
@@ -54,10 +53,10 @@ func HandlerInit(s *state, cmd command) error {
 }
 
 type PDFsConfig struct {
-	Path    string `json:"path"`
-	NewName string `json:"new_name"`
-	Title   string `json:"title"`
-	Author  string `json:"author"`
+	Filename string `json:"filename"`
+	NewName  string `json:"new_name"`
+	Title    string `json:"title"`
+	Author   string `json:"author"`
 }
 
 func generateConfigPdfsFile(pdfDir, configPDFsFilePath, title, author string) error {
@@ -77,7 +76,7 @@ func generateConfigPdfsFile(pdfDir, configPDFsFilePath, title, author string) er
 		return nil
 	}
 
-	pdfsInfo := map[string]PDFsConfig{}
+	pdfsInfo := []PDFsConfig{}
 	for _, pdf := range pdfs {
 		filenameWithoutExt := strings.TrimSuffix(pdf, pdfExt)
 		newFilename := slug.Create(filenameWithoutExt) + pdfExt
@@ -89,12 +88,12 @@ func generateConfigPdfsFile(pdfDir, configPDFsFilePath, title, author string) er
 			metaTitle = title
 		}
 
-		pdfsInfo[pdf] = PDFsConfig{
-			Path:    filepath.Join(pdfDir, pdf),
-			NewName: newFilename,
-			Title:   metaTitle,
-			Author:  author,
-		}
+		pdfsInfo = append(pdfsInfo, PDFsConfig{
+			Filename: pdf,
+			NewName:  newFilename,
+			Title:    metaTitle,
+			Author:   author,
+		})
 	}
 
 	encoder := json.NewEncoder(cfgPDFsFile)

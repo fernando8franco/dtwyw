@@ -34,6 +34,7 @@ func main() {
 	}
 	appPath := filepath.Join(homeDir, dtwywDir)
 	pdfsDirPath := filepath.Join(appPath, pdfsDir)
+	compressPdfsPath := filepath.Join(appPath, compressPdfsDir)
 	configPDFsFilePath := filepath.Join(appPath, pdfsDir, cnfPDFsFilename)
 
 	mu := &sync.RWMutex{}
@@ -41,8 +42,9 @@ func main() {
 	programState := state{
 		cfg: &conf,
 		paths: paths{
-			pdfsDir:        pdfsDirPath,
-			configPDFsFile: configPDFsFilePath,
+			pdfsDir:         pdfsDirPath,
+			compressPdfsDir: compressPdfsPath,
+			configPDFsFile:  configPDFsFilePath,
 		},
 		mu: mu,
 	}
@@ -51,8 +53,8 @@ func main() {
 		registeredCommands: make(map[string]func(*state, command) error),
 	}
 
-	commands.Register("init", HandlerInit)
-	// commands.Register("compress", HandlerCompress)
+	commands.Register(initCmd, HandlerInit)
+	commands.Register(compressCmd, HandlerCompress)
 
 	if len(os.Args) < 2 {
 		log.Fatal("not enough arguments were provided")

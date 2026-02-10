@@ -105,6 +105,7 @@ func (c *Config) SetToken(key string, token string) error {
 			break
 		}
 	}
+
 	return write(*c)
 }
 

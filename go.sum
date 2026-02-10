@@ -4,6 +4,8 @@ github.com/fernando8franco/i-love-api-golang v0.1.0 h1:msqmiyrYJywpd4PT3KutmCXRj
 github.com/fernando8franco/i-love-api-golang v0.1.0/go.mod h1:RewRVwzghjj7XnBF2JNzm5yF74QBgGCXJMBGCI2WNT4=
 github.com/fernando8franco/i-love-api-golang v0.1.1 h1:E4aUorg65X9fJJwGBi5Js/dNIFehTJLT1FsTLeAEGrc=
 github.com/fernando8franco/i-love-api-golang v0.1.1/go.mod h1:RewRVwzghjj7XnBF2JNzm5yF74QBgGCXJMBGCI2WNT4=
+github.com/fernando8franco/i-love-api-golang v0.1.2 h1:F859qI5ATAmvif+tf4+VAYwbZ8q3hGtV8f9egYV+7wE=
+github.com/fernando8franco/i-love-api-golang v0.1.2/go.mod h1:RewRVwzghjj7XnBF2JNzm5yF74QBgGCXJMBGCI2WNT4=
 golang.org/x/sync v0.18.0 h1:kr88TuHDroi+UVf+0hZnirlk8o8T+4MrK6mr60WkH/I=
 golang.org/x/sync v0.18.0/go.mod h1:9KTHXmSnoGruLpwFjVSX0lNNA75CykiMECbovNTZqGI=
 golang.org/x/text v0.7.0 h1:4BRB4x83lYWy72KwLD/qYDuTu7q9PjSagHvijDw7cLo=
