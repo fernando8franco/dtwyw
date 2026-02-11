@@ -146,7 +146,7 @@ func callWithRetry[T any](s *state, iloveAPI *ilApi.Client, apiFunc func() (T, e
 
 	if err != nil {
 		if isUnauthorized(err) {
-			err = getToken(s, iloveAPI, s.cfg.GetToken())
+			err = checkToken(s, iloveAPI, s.cfg.GetToken())
 			if err != nil {
 				return response, err
 			}
@@ -164,7 +164,7 @@ func isUnauthorized(err error) bool {
 	return errors.As(err, &u) && u.IsUnauthorized()
 }
 
-func getToken(s *state, iloveAPI *ilApi.Client, routineToken string) (err error) {
+func checkToken(s *state, iloveAPI *ilApi.Client, routineToken string) (err error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	currentKey := s.cfg.GetKeyInfo().Key
