@@ -88,16 +88,6 @@ func (c *Config) SetStatus(activeKey int) error {
 	return write(*c)
 }
 
-func (c *Config) GetToken() string {
-	for _, k := range c.APIKeys {
-		if k.Status {
-			return k.Token
-		}
-	}
-
-	return ""
-}
-
 func (c *Config) SetToken(key string, token string) error {
 	for i, k := range c.APIKeys {
 		if k.Key == key {

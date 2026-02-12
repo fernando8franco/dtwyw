@@ -36,7 +36,7 @@ func HandlerCompress(s *state, cmd command) error {
 				fmt.Println("Compressing:", pdf.Filename)
 
 				startResponse, err := callWithRetry(s, iloveapi, func() (ilApi.StartResponse, error) {
-					return iloveapi.Start(s.cfg.GetToken(), toolCompress, region)
+					return iloveapi.Start(s.cfg.GetKeyInfo().Token, toolCompress, region)
 				})
 				if err != nil {
 					return err
@@ -45,7 +45,6 @@ func HandlerCompress(s *state, cmd command) error {
 				server := startResponse.Server
 				task := startResponse.Task
 				pdfFile := filepath.Join(s.paths.pdfsDir, pdf.Filename)
-
 				file, err := os.Open(pdfFile)
 				if err != nil {
 					return err
@@ -53,7 +52,7 @@ func HandlerCompress(s *state, cmd command) error {
 				defer file.Close()
 
 				uploadResponse, err := callWithRetry(s, iloveapi, func() (ilApi.UploadResponse, error) {
-					return iloveapi.Upload(s.cfg.GetToken(), server, ilApi.UploadRequest{
+					return iloveapi.Upload(s.cfg.GetKeyInfo().Token, server, ilApi.UploadRequest{
 						Task:     task,
 						File:     file,
 						FileName: pdf.Filename,
@@ -65,7 +64,7 @@ func HandlerCompress(s *state, cmd command) error {
 
 				serverFilename := uploadResponse.ServerFilename
 				_, err = callWithRetry(s, iloveapi, func() (ilApi.ProcessResponse, error) {
-					return iloveapi.Process(s.cfg.GetToken(), server, ilApi.ProcessRequest{
+					return iloveapi.Process(s.cfg.GetKeyInfo().Token, server, ilApi.ProcessRequest{
 						Task: task,
 						Tool: toolCompress,
 						Files: []ilApi.Files{
@@ -85,7 +84,6 @@ func HandlerCompress(s *state, cmd command) error {
 				}
 
 				compressPdfPath := filepath.Join(s.paths.compressPdfsDir, pdf.NewName)
-
 				out, err := os.Create(compressPdfPath)
 				if err != nil {
 					return err
@@ -93,7 +91,7 @@ func HandlerCompress(s *state, cmd command) error {
 				defer out.Close()
 
 				dowloadResponse, err := callWithRetry(s, iloveapi, func() (io.ReadCloser, error) {
-					return iloveapi.Dowload(s.cfg.GetToken(), server, task, out)
+					return iloveapi.Dowload(s.cfg.GetKeyInfo().Token, server, task, out)
 				})
 				if err != nil {
 					return err
@@ -109,7 +107,7 @@ func HandlerCompress(s *state, cmd command) error {
 				if err != nil {
 					return err
 				}
-				fmt.Println(pdf.Filename, "--- Compress GOOD")
+				fmt.Println(pdf.Filename, "--- Compressed correctly")
 			}
 
 			return nil
@@ -146,7 +144,7 @@ func callWithRetry[T any](s *state, iloveAPI *ilApi.Client, apiFunc func() (T, e
 
 	if err != nil {
 		if isUnauthorized(err) {
-			err = checkToken(s, iloveAPI, s.cfg.GetToken())
+			err = checkToken(s, iloveAPI, s.cfg.GetKeyInfo().Token)
 			if err != nil {
 				return response, err
 			}
@@ -168,7 +166,7 @@ func checkToken(s *state, iloveAPI *ilApi.Client, routineToken string) (err erro
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	currentKey := s.cfg.GetKeyInfo().Key
-	currentSavedToken := s.cfg.GetToken()
+	currentSavedToken := s.cfg.GetKeyInfo().Token
 
 	if routineToken == currentSavedToken {
 		fmt.Println("Refresing Token...")
