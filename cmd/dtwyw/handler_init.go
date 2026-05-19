@@ -8,8 +8,8 @@ import (
 	"os"
 	"strings"
 
-	"github.com/fernando8franco/dtwyw/pkg/pdfs"
-	"github.com/fernando8franco/dtwyw/pkg/slug"
+	"github.com/fernando8franco/pressgo/pkg/pdfs"
+	"github.com/fernando8franco/pressgo/pkg/slug"
 )
 
 func HandlerInit(s *state, cmd command) error {

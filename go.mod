@@ -1,4 +1,4 @@
-module github.com/fernando8franco/dtwyw
+module github.com/fernando8franco/pressgo
 
 go 1.25.6
 

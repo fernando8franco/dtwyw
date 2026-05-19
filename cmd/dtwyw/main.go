@@ -6,7 +6,7 @@ import (
 	"path/filepath"
 	"sync"
 
-	"github.com/fernando8franco/dtwyw/internal/config"
+	"github.com/fernando8franco/pressgo/internal/config"
 )
 
 type state struct {
