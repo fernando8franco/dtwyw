@@ -1,8 +1,9 @@
 package main
 
 const (
-	initCmd     = "init"
-	compressCmd = "compress"
+	credentialsCmd = "credentials"
+	initCmd        = "init"
+	compressCmd    = "compress"
 
 	initHelpFlag   = "help"
 	initTitleFlag  = "title"
@@ -13,9 +14,4 @@ const (
 
 	pdfExt        = ".pdf"
 	titleFilename = "filename"
-
-	dtwywDir        = "dtwyw"
-	pdfsDir         = "pdfs"
-	compressPdfsDir = "compress_pdfs"
-	cnfPDFsFilename = "config.pdfs.json"
 )
