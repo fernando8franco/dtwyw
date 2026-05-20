@@ -13,8 +13,9 @@ func HandlerCredentials(s *state, cmd command) error {
 	fs := flag.NewFlagSet(cmd.Name, flag.ContinueOnError)
 
 	var (
-		help = fs.Bool(initHelpFlag, false, "Show help message")
-		add  = fs.Bool("add", false, "Add new credentials (id, key)")
+		help   = fs.Bool(initHelpFlag, false, "Show help message")
+		add    = fs.Bool("add", false, "Add new credential (id, key)")
+		delete = fs.Bool("delete", false, "Delete credential (id)")
 	)
 	fs.Parse(cmd.Arguments)
 
@@ -26,25 +27,51 @@ func HandlerCredentials(s *state, cmd command) error {
 	if *add {
 		cmd.Arguments = fs.Args()
 		if len(cmd.Arguments) != 2 {
-			fmt.Printf("Only two arguments are valid with -add flag (id, key)")
+			fmt.Printf("Only two arguments are accepted with -add flag (id, key)")
 			return nil
 		}
-		return addCredential(s, cmd)
+
+		id, err := addCredential(s, cmd)
+		if err != nil {
+			return err
+		}
+		fmt.Printf("The credential with id: %v was added\n", id)
+		return nil
+	}
+
+	if *delete {
+		cmd.Arguments = fs.Args()
+		if len(cmd.Arguments) != 1 {
+			fmt.Printf("Only one argument is accepted with -delete flag (id)")
+			return nil
+		}
+
+		id, err := deleteCredential(s, cmd)
+		if err != nil {
+			return err
+		}
+		fmt.Printf("The credential with id: %v was deleted\n", id)
+		return nil
 	}
 
 	return nil
 }
 
-func addCredential(s *state, cmd command) error {
-	email := cmd.Arguments[0]
+func addCredential(s *state, cmd command) (string, error) {
+	id := cmd.Arguments[0]
 	key := cmd.Arguments[1]
 
 	token, credits, err := validateCredential(s, key)
 	if err != nil {
-		return fmt.Errorf("Error in validating the credential")
+		return "", fmt.Errorf("Error in validating the credential")
 	}
 
-	return s.cfg.AddCredential(email, config.CreateCredential(key, token, credits))
+	s.cfg.AddCredential(id, config.CreateCredential(key, token, credits))
+	if err != nil {
+		return "", err
+	}
+
+	return id, nil
 }
 
 func validateCredential(s *state, key string) (string, int, error) {
@@ -60,4 +87,14 @@ func validateCredential(s *state, key string) (string, int, error) {
 	}
 
 	return api.GetToken(), start.RemainingCredits, nil
+}
+
+func deleteCredential(s *state, cmd command) (string, error) {
+	id := cmd.Arguments[0]
+	err := s.cfg.DeleteCredential(id)
+	if err != nil {
+		return "", err
+	}
+
+	return id, nil
 }

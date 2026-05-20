@@ -3,6 +3,7 @@ package config
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"os"
 	"path/filepath"
 )
@@ -100,22 +101,50 @@ func Read() (Config, error) {
 	return cfg, nil
 }
 
-func (c *Config) addCredential(configFilePath, email string, credentials Credential) error {
+func (c *Config) addCredential(configFilePath, id string, credentials Credential) error {
 	if len(c.Credentials) == 0 {
 		credentials.Status = true
 	}
 
-	c.Credentials[email] = credentials
+	c.Credentials[id] = credentials
 	return write(configFilePath, *c)
 }
 
-func (c *Config) AddCredential(email string, credentials Credential) error {
+func (c *Config) AddCredential(id string, credentials Credential) error {
 	configFilePath, err := getConfigFilePath()
 	if err != nil {
 		return err
 	}
 
-	return c.addCredential(configFilePath, email, credentials)
+	return c.addCredential(configFilePath, id, credentials)
+}
+
+func (c *Config) deleteCredential(configFilePath, id string) error {
+	if _, ok := c.Credentials[id]; !ok {
+		return fmt.Errorf("The credential id doesn't exist")
+	}
+	delete(c.Credentials, id)
+
+	for key, value := range c.Credentials {
+		value.Status = true
+		c.Credentials[key] = value
+		break
+	}
+	return write(configFilePath, *c)
+}
+
+func (c *Config) DeleteCredential(id string) error {
+	configFilePath, err := getConfigFilePath()
+	if err != nil {
+		return err
+	}
+
+	return c.deleteCredential(configFilePath, id)
+}
+
+func (c *Config) getCredentials() [][]string {
+	for key, value :=
+	return nil
 }
 
 // func (c *Config) GetKeyInfo() KeyInfo {
