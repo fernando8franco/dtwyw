@@ -4,18 +4,21 @@ import (
 	"context"
 	"flag"
 	"fmt"
+	"os"
 
 	iloveapi "github.com/fernando8franco/i-love-api-golang"
 	"github.com/fernando8franco/pressgo/internal/config"
+	"github.com/olekukonko/tablewriter"
 )
 
 func HandlerCredentials(s *state, cmd command) error {
-	fs := flag.NewFlagSet(cmd.Name, flag.ContinueOnError)
+	fs := flag.NewFlagSet(cmd.Name, flag.ExitOnError)
 
 	var (
-		help   = fs.Bool(initHelpFlag, false, "Show help message")
-		add    = fs.Bool("add", false, "Add new credential (id, key)")
-		delete = fs.Bool("delete", false, "Delete credential (id)")
+		help     = fs.Bool(initHelpFlag, false, "Show help message")
+		add      = fs.Bool("add", false, "Add new credential (id, key)")
+		delete   = fs.Bool("delete", false, "Delete credential (id)")
+		activate = fs.Bool("activate", false, "Activate credential (id)")
 	)
 	fs.Parse(cmd.Arguments)
 
@@ -27,7 +30,7 @@ func HandlerCredentials(s *state, cmd command) error {
 	if *add {
 		cmd.Arguments = fs.Args()
 		if len(cmd.Arguments) != 2 {
-			fmt.Printf("Only two arguments are accepted with -add flag (id, key)")
+			fmt.Printf("Only two arguments are accepted with -add flag (id, key)\n")
 			return nil
 		}
 
@@ -42,7 +45,7 @@ func HandlerCredentials(s *state, cmd command) error {
 	if *delete {
 		cmd.Arguments = fs.Args()
 		if len(cmd.Arguments) != 1 {
-			fmt.Printf("Only one argument is accepted with -delete flag (id)")
+			fmt.Printf("Only one argument is accepted with -delete flag (id)\n")
 			return nil
 		}
 
@@ -53,6 +56,30 @@ func HandlerCredentials(s *state, cmd command) error {
 		fmt.Printf("The credential with id: %v was deleted\n", id)
 		return nil
 	}
+
+	if *activate {
+		cmd.Arguments = fs.Args()
+		if len(cmd.Arguments) != 1 {
+			fmt.Printf("Only one argument is accepted with -activate flag (id)\n")
+			return nil
+		}
+
+		id := cmd.Arguments[0]
+		s.cfg.ActivateCredential(id)
+		fmt.Printf("The credential with id: %v was activated\n", id)
+		return nil
+	}
+
+	credentials := s.cfg.GetCredentials()
+	if len(credentials) == 0 {
+		fs.Usage()
+		return nil
+	}
+
+	table := tablewriter.NewWriter(os.Stdout)
+	table.Header([]string{"ID", "Key", "Credits", "Status"})
+	table.Bulk(credentials)
+	table.Render()
 
 	return nil
 }

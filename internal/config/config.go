@@ -6,11 +6,16 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"slices"
+	"strconv"
+	"strings"
 )
 
 const (
 	configDir      = "pressgo"
 	configFileName = ".config.json"
+	activeEmoji    = "✅"
+	inactiveEmoji  = "❌"
 )
 
 type Config struct {
@@ -142,9 +147,70 @@ func (c *Config) DeleteCredential(id string) error {
 	return c.deleteCredential(configFilePath, id)
 }
 
-func (c *Config) getCredentials() [][]string {
-	for key, value :=
-	return nil
+func (c *Config) activateCredential(configFilePath, id string) error {
+	if _, ok := c.Credentials[id]; !ok {
+		return fmt.Errorf("The credential id doesn't exist")
+	}
+
+	for key, value := range c.Credentials {
+		value.Status = false
+		if key == id {
+			value.Status = true
+		}
+		c.Credentials[key] = value
+	}
+
+	return write(configFilePath, *c)
+}
+
+func (c *Config) ActivateCredential(id string) error {
+	configFilePath, err := getConfigFilePath()
+	if err != nil {
+		return err
+	}
+
+	return c.activateCredential(configFilePath, id)
+}
+
+type CredentialWithID struct {
+	ID string
+	Credential
+}
+
+func (c *Config) GetCredentials() [][]string {
+	var credentials [][]string
+	for key, value := range c.Credentials {
+		status := inactiveEmoji
+		if value.Status {
+			status = activeEmoji
+		}
+		row := []string{
+			key,
+			fmt.Sprintf("%s...", safeTruncate(value.Key, 20)),
+			strconv.Itoa(value.Credits),
+			status,
+		}
+		credentials = append(credentials, row)
+	}
+
+	slices.SortFunc(credentials, func(a, b []string) int {
+		if a[3] == b[3] {
+			return strings.Compare(a[0], b[0])
+		}
+		if a[3] == activeEmoji {
+			return -1
+		}
+		return 1
+	})
+
+	return credentials
+}
+
+func safeTruncate(s string, n int) string {
+	if len(s) <= n {
+		return s
+	}
+	return s[:n]
 }
 
 // func (c *Config) GetKeyInfo() KeyInfo {

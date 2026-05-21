@@ -177,17 +177,38 @@ func TestDeleteCredential_ExclusiveStatus(t *testing.T) {
 }
 
 func TestGetCredentials(t *testing.T) {
-	path := filepath.Join(t.TempDir(), configFileName)
 	cfg := Config{
 		Credentials: map[string]Credential{
 			"credential1": {},
-			"credential2": {},
-			"credential3": {},
+			"credential2": {Status: true},
 		},
 	}
-	expected := Config{Credentials: map[string]Credential{"credential1": {}, "credential2": {}, "credential3": {}}}
+	expected := [][]string{
+		{"credential2", "...", "0", "✅"},
+		{"credential1", "...", "0", "❌"},
+	}
 
-	err := cfg.getCredentials(path, "credential1")
+	got := cfg.GetCredentials()
+
+	if !reflect.DeepEqual(expected, got) {
+		t.Errorf("Config mismatch.\nGot:  %+v\nWant: %+v", got, expected)
+	}
+}
+
+func TestActivateCredential(t *testing.T) {
+	path := filepath.Join(t.TempDir(), configFileName)
+	cfg := Config{
+		Credentials: map[string]Credential{
+			"credential1": {Status: true},
+			"credential2": {Status: false},
+		},
+	}
+	expected := Config{Credentials: map[string]Credential{
+		"credential1": {Status: false},
+		"credential2": {Status: true},
+	}}
+
+	err := cfg.activateCredential(path, "credential2")
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
