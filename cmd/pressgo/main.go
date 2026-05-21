@@ -11,6 +11,7 @@ import (
 
 type state struct {
 	cfg    *config.Config
+	wdir   string
 	mu     *sync.RWMutex
 	client *http.Client
 }
@@ -21,13 +22,14 @@ func main() {
 		log.Fatalf("error reading config file: %v", err)
 	}
 
-	// homeDir, err := os.UserHomeDir()
-	// if err != nil {
-	// 	log.Fatalf("error getting user home dir: %v", err)
-	// }
+	wdir, err := os.Getwd()
+	if err != nil {
+		log.Fatalf("error getting current directory: %v", err)
+	}
 
 	programState := state{
 		cfg:    &conf,
+		wdir:   wdir,
 		mu:     &sync.RWMutex{},
 		client: &http.Client{},
 	}
@@ -38,7 +40,7 @@ func main() {
 
 	commands.Register(credentialsCmd, HandlerCredentials)
 	// commands.Register(initCmd, HandlerInit)
-	// commands.Register(compressCmd, HandlerCompress)
+	commands.Register(compressCmd, HandlerCompress)
 
 	if len(os.Args) < 2 {
 		log.Fatal("not enough arguments were provided")

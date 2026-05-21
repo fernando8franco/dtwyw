@@ -16,9 +16,9 @@ func HandlerCredentials(s *state, cmd command) error {
 
 	var (
 		help     = fs.Bool(initHelpFlag, false, "Show help message")
-		add      = fs.Bool("add", false, "Add new credential (id, key)")
-		delete   = fs.Bool("delete", false, "Delete credential (id)")
-		activate = fs.Bool("activate", false, "Activate credential (id)")
+		add      = fs.Bool("add", false, "Add new credential -add <id> <key>")
+		delete   = fs.Bool("delete", false, "Delete credential -delete <id>")
+		activate = fs.Bool("activate", false, "Activate credential -activate <id>")
 	)
 	fs.Parse(cmd.Arguments)
 
@@ -30,8 +30,8 @@ func HandlerCredentials(s *state, cmd command) error {
 	if *add {
 		cmd.Arguments = fs.Args()
 		if len(cmd.Arguments) != 2 {
-			fmt.Printf("Only two arguments are accepted with -add flag (id, key)\n")
-			return nil
+			fmt.Printf("Error: -add requires exactly two arguments: id and key.\nUsage: pressgo -add <id> <key>\n")
+			os.Exit(1)
 		}
 
 		id, err := addCredential(s, cmd)
@@ -45,8 +45,8 @@ func HandlerCredentials(s *state, cmd command) error {
 	if *delete {
 		cmd.Arguments = fs.Args()
 		if len(cmd.Arguments) != 1 {
-			fmt.Printf("Only one argument is accepted with -delete flag (id)\n")
-			return nil
+			fmt.Printf("Error: -delete requires exactly one argument: id.\nUsage: pressgo -delete <id>\n")
+			os.Exit(1)
 		}
 
 		id, err := deleteCredential(s, cmd)
@@ -60,8 +60,8 @@ func HandlerCredentials(s *state, cmd command) error {
 	if *activate {
 		cmd.Arguments = fs.Args()
 		if len(cmd.Arguments) != 1 {
-			fmt.Printf("Only one argument is accepted with -activate flag (id)\n")
-			return nil
+			fmt.Printf("Error: -activate requires exactly one argument: id.\nUsage: pressgo -activate <id>\n")
+			os.Exit(1)
 		}
 
 		id := cmd.Arguments[0]

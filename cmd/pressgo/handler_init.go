@@ -1,17 +1,5 @@
 package main
 
-// import (
-// 	"encoding/json"
-// 	"errors"
-// 	"flag"
-// 	"fmt"
-// 	"os"
-// 	"strings"
-
-// 	"github.com/fernando8franco/pressgo/pkg/pdfs"
-// 	"github.com/fernando8franco/pressgo/pkg/slug"
-// )
-
 // func HandlerInit(s *state, cmd command) error {
 // 	fs := flag.NewFlagSet(cmd.Name, flag.ContinueOnError)
 

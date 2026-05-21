@@ -2,16 +2,16 @@ package main
 
 const (
 	credentialsCmd = "credentials"
-	initCmd        = "init"
 	compressCmd    = "compress"
 
-	initHelpFlag   = "help"
-	initTitleFlag  = "title"
-	initAuthorFlag = "author"
+	initHelpFlag = "help"
+	noInitFlag   = "no-init"
+	initFlag     = "init"
 
 	toolCompress = "compress"
 	region       = "us"
 
+	configFile    = "pressgo.config.json"
 	pdfExt        = ".pdf"
-	titleFilename = "filename"
+	titleFilename = "base"
 )
